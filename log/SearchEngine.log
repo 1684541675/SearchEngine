@@ -74,3 +74,21 @@
 	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:34440 disconnected
 2026-05-17 23:01:21,469 SearchEngine [INFO] [EchoServer.cc:onClose.78]
 	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:49382 disconnected
+2026-05-18 15:33:39,269 SearchEngine [INFO] [EchoServer.cc:onConnection.62]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:47166 connected
+2026-05-18 15:33:50,643 SearchEngine [INFO] [MyTask.cc:process.56]
+	redis miss: wo
+2026-05-18 15:34:01,736 SearchEngine [INFO] [MyTask.cc:process.56]
+	redis miss: 我是
+2026-05-18 15:34:18,555 SearchEngine [INFO] [MyTask.cc:process.72]
+	LRU miss: 教育
+2026-05-18 15:34:45,339 SearchEngine [INFO] [EchoServer.cc:onClose.78]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:47166 disconnected
+2026-05-18 15:49:16,298 SearchEngine [INFO] [EchoServer.cc:onConnection.62]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:40814 connected
+2026-05-18 15:49:21,456 SearchEngine [INFO] [MyTask.cc:process.56]
+	redis miss: 美国
+2026-05-18 15:49:33,430 SearchEngine [INFO] [MyTask.cc:process.72]
+	LRU miss: 美的
+2026-05-18 15:49:45,316 SearchEngine [INFO] [EchoServer.cc:onClose.78]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:40814 disconnected

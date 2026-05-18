@@ -34,13 +34,15 @@
 │   └── invertIndex.dat       # 倒排索引库
 ├── include/                  # 项目头文件
 ├── log/                      # 日志文件
+├── picture/                  # README 运行截图
 ├── src/
 │   ├── module1/              # 离线词典构建模块
 │   ├── module2/              # 离线网页库和倒排索引构建模块
 │   ├── module3/              # 在线搜索服务端
 │   └── module4/              # 命令行客户端
 ├── yuliao/                   # 原始语料和停用词
-└── README.md
+├── Makefile                  # 分模块编译辅助脚本
+└── README.md                 # 项目说明文档
 ```
 
 ## 核心模块
@@ -170,6 +172,17 @@ JSON body
 ## 编译与运行
 
 以下命令基于个人 Linux 虚拟机环境，服务端依赖本机已安装的 Redis、redis-plus-plus、hiredis、log4cpp 等库。
+
+项目根目录提供了一个简单的 `Makefile`，用于保存各模块的 `g++` 编译命令：
+
+```bash
+make module1   # 构建中英文词典生成程序
+make module2   # 构建网页库和倒排索引生成程序
+make server    # 构建在线搜索服务端
+make client    # 构建命令行客户端
+```
+
+也可以按下面步骤进入各模块目录手动编译和运行。
 
 ### 1. 启动 Redis
 

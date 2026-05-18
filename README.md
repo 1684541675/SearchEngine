@@ -179,6 +179,7 @@ JSON body
 make module1   # 构建中英文词典生成程序
 make module2   # 构建网页库和倒排索引生成程序
 make server    # 构建在线搜索服务端
+make run-server # 构建并启动服务端，自动设置 LD_LIBRARY_PATH
 make client    # 构建命令行客户端
 ```
 
@@ -230,9 +231,15 @@ g++ *.cc -I../../include
 
 ```bash
 cd src/module3
-g++ *.cc -o server -I../../include -std=c++17 -lredis++ -lhiredis -llog4cpp -lpthread
+g++ *.cc -o server -I../../include -std=c++17 -L/usr/local/lib -lredis++ -lhiredis -llog4cpp -lpthread
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ./server
+```
+
+如果使用根目录的 `Makefile`，可以直接执行：
+
+```bash
+make run-server
 ```
 
 ### 5. 启动客户端

@@ -297,16 +297,26 @@ void EventLoop::handleOldConnection(int connFd)
 
     if (conn_it != _connMap.end())
     {
-        if (conn_it->second->isClosed()) // conn 已断开
+        TcpConnectionPtr conn = conn_it->second;
+
+        if (conn->isClosed()) // conn 已断开
         {
-            conn_it->second->handleCloseCallBack(); // 执行连接断开事件的事件处理器
+            conn->markClosed();
+            conn->handleCloseCallBack(); // 执行连接断开事件的事件处理器
 
             delEpollFd(connFd);      // 将 connFd 从监听集合 _epFd 中删除，即不再监听它了
             _connMap.erase(conn_it); // 将这条已断开的连接 conn 从已连接集合 _connMap 中删除（完成 TCP 挥手）
         }
         else                                          // conn 没有断开
         {
-            conn_it->second->handleMessageCallBack(); // 执行新消息事件的事件处理器
+            conn->handleMessageCallBack(); // 执行新消息事件的事件处理器
+
+            if (!conn->isAlive())
+            {
+                conn->handleCloseCallBack();
+                delEpollFd(connFd);
+                _connMap.erase(conn_it);
+            }
         }
     }
     else

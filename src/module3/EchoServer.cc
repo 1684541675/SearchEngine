@@ -65,12 +65,14 @@ void EchoServer::onConnection(const TcpConnectionPtr &connPtr)
 
 void EchoServer::onMessage(const TcpConnectionPtr &connPtr)
 {
-    // recv
-    string msg = connPtr->recv();
+    auto messages = connPtr->recvMessages();
 
-    // decode -> compute -> encode -> send
-    MyTask task(msg, connPtr, _webPageSearcher, _recommender, _redis);
-    _pool.addTask([task]() mutable { task.process(); }); // 也可以 lambda 表达式
+    for (const auto &msg : messages)
+    {
+        // decode -> compute -> encode -> send
+        MyTask task(msg, connPtr, _webPageSearcher, _recommender, _redis);
+        _pool.addTask([task]() mutable { task.process(); }); // 也可以 lambda 表达式
+    }
 }
 
 void EchoServer::onClose(const TcpConnectionPtr &connPtr)

@@ -21,7 +21,7 @@ void test1()
 void test2()
 {
     auto &p = CacheManager::getInstance();
-    auto cacheGroup = p.getCacheGroup(0);
+    auto &cacheGroup = p.getCacheGroup(0);
     auto res = cacheGroup.getRecord("hello");
     cacheGroup.insertRecord("hello", "hello");
     cacheGroup.insertRecord("xixi", "xixi");

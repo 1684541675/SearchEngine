@@ -6,6 +6,7 @@
 
 #include <cerrno>         // errno, EINTR
 #include <cstdio>         // perror, printf
+#include <cstring>        // memcpy
 #include <sstream>        // ostringstream
 
 #include <iostream>
@@ -23,6 +24,7 @@ TcpConnection::TcpConnection(int fd, EventLoop *loopPtr)
 ,_localAddr(getLocalAddr())
 ,_peerAddr(getPeerAddr())
 ,_isShutDownWrite(false)
+,_isAlive(true)
 ,_loopPtr(loopPtr)
 {
 
@@ -109,6 +111,67 @@ string TcpConnection::recv()
 }
 
 /**
+ *  获取当前已到达的完整消息（按小火车协议）
+ *
+ *  1. 只读取当前 socket 接收缓冲区中已经到达的数据，不等待完整业务包
+ *  2. 半包会留在 _inputBuffer 中，下一次可读事件到来后继续解析
+ *  3. 粘包会被拆成多条完整消息返回
+ */
+vector<string> TcpConnection::recvMessages()
+{
+    vector<string> messages;
+    char buf[65536] = {0};
+
+    while (true)
+    {
+        ssize_t ret = 0;
+
+        do
+        {
+            ret = ::recv(_connSock.fd(), buf, sizeof(buf), MSG_DONTWAIT);
+        } while (ret == -1 && errno == EINTR);
+
+        if (ret > 0)
+        {
+            _inputBuffer.append(buf, static_cast<size_t>(ret));
+        }
+        else if (ret == 0)
+        {
+            fprintf(stderr, "recv: peerFd(%d) disconnected\n", _connSock.fd());
+            markClosed();
+            break;
+        }
+        else
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+            {
+                break;
+            }
+
+            perror("recv");
+            markClosed();
+            break;
+        }
+    }
+
+    while (_inputBuffer.size() >= sizeof(size_t))
+    {
+        size_t length = 0;
+        memcpy(&length, _inputBuffer.data(), sizeof(size_t));
+
+        if (length > _inputBuffer.size() - sizeof(size_t))
+        {
+            break;
+        }
+
+        messages.emplace_back(_inputBuffer.data() + sizeof(size_t), length);
+        _inputBuffer.erase(0, sizeof(size_t) + length);
+    }
+
+    return messages;
+}
+
+/**
  *  获取一行数据
  */
 string TcpConnection::recvLine()
@@ -174,6 +237,16 @@ bool TcpConnection::isClosed() const
     }
 
     return ret == 0;
+}
+
+bool TcpConnection::isAlive() const
+{
+    return _isAlive;
+}
+
+void TcpConnection::markClosed()
+{
+    _isAlive = false;
 }
 
 InetAddress TcpConnection::getLocalAddr()

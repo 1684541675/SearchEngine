@@ -7,11 +7,13 @@
 #include <string>
 #include <functional>
 #include <memory>
+#include <vector>
 
 using std::string;
 using std::function;
 using std::shared_ptr;
 using std::enable_shared_from_this;
+using std::vector;
 
 namespace searchengine
 {
@@ -42,10 +44,13 @@ public:
 
     void send(const string &);
     string recv();
+    vector<string> recvMessages();
     string recvLine();
     string show();
 
     bool isClosed() const;
+    bool isAlive() const;
+    void markClosed();
 
     void setConnectionCallBack(const TcpConnectionCallBack &);
     void setMessageCallBack(const TcpConnectionCallBack &);
@@ -67,6 +72,8 @@ private:
     InetAddress _localAddr;
     InetAddress _peerAddr;
     bool _isShutDownWrite;
+    bool _isAlive;
+    string _inputBuffer;
     
     TcpConnectionCallBack _onConnectionCb; // 新连接事件的事件处理器（回调函数）
     TcpConnectionCallBack _onMessageCb;    // 新消息事件的事件处理器

@@ -39,6 +39,7 @@ void LRUCache::insertRecord(const string &query, const string &result)
     {
         // 将 query 的记录移至 _resultList 头部
         _resultList.splice(_resultList.begin(), _resultList, _hashMap[query]);
+        _hashMap[query]->second = result;
     }
     else
     {

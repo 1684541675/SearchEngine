@@ -1,5 +1,6 @@
 #include "CacheManager.h"
 #include "Configuration.h"
+#include "MutexLockGuard.h"
 #include <iostream>
 using std::cout;    
 using std::endl;
@@ -21,9 +22,11 @@ CacheGroup &CacheManager::getCacheGroup(size_t idx)
 CacheManager::CacheManager()
 :_cacheNums(stoul(Configuration::getInstance().getConfigMap()["workernum"]))
 ,_maxRecord(stoul(Configuration::getInstance().getConfigMap()["recordnum"]))
-,_caches(_cacheNums, _maxRecord) // 创建 _cacheNums 个 cache group 对象（这里在构造对象时还要传入 _maxRecord）
 {
-
+    for (size_t idx = 0; idx < _cacheNums; ++idx)
+    {
+        _caches.emplace_back(_maxRecord);
+    }
 }
 
 
@@ -31,32 +34,48 @@ void CacheManager::sync()
 {
     cout << "timer thread: start sync" << endl;
 
-    auto &first_group = _caches[0];
-    first_group._onlyRead = true;
-    for (auto &group : _caches)
+    if (_caches.empty())
     {
+        return;
+    }
+
+    auto &first_group = _caches[0];
+    MutexLockGuard firstGuard(first_group._mutex);
+
+    for (size_t idx = 0; idx < _caches.size(); ++idx)
+    {
+        auto &group = _caches[idx];
+        if (idx != 0)
+        {
+            group._mutex.lock();
+        }
+
         auto &pendingCache = group._pendingUpdateCache;
 #ifdef __DEBUG__
         cout << "group._pengdingCache.size() = " << pendingCache.size() << endl;
 #endif
         for (auto &record : pendingCache._resultList)
         {
-            first_group.insertRecord(record.first, record.second);
+            first_group._mainCache.insertRecord(record.first, record.second);
 #ifdef __DEBUG__
             cout << "first_group._mainCache.size() = " << first_group._mainCache.size() << endl;
 #endif
         }
         pendingCache.clear();
+
+        if (idx != 0)
+        {
+            group._mutex.unlock();
+        }
     }
 
 
-    for (auto &group : _caches)
+    for (size_t idx = 1; idx < _caches.size(); ++idx)
     {
-        group._onlyRead = true;
-        group.update(first_group);
-        group._onlyRead = false;
+        auto &group = _caches[idx];
+        MutexLockGuard groupGuard(group._mutex);
+        group._mainCache.update(first_group._mainCache);
     }
-    first_group._onlyRead = false;
 
 #ifdef __DEBUG__
     printf("\t(File:%s, Func:%s(), Line:%d)\n", __FILE__, __FUNCTION__, __LINE__);

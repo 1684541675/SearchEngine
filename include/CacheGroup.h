@@ -1,5 +1,6 @@
 #pragma once
 #include "LRUCache.h"
+#include "MutexLock.h"
 #include <string>
 using std::string;
 
@@ -26,7 +27,7 @@ public:
 private:
     LRUCache _mainCache;          // 主 cache
     LRUCache _pendingUpdateCache; // 更新 cache（存放自上次更新以来新的记录，用于更新操作）
-    bool _onlyRead; // 若为 true，则新记录只写入主 cache，不写入待更新 cache
+    MutexLock _mutex;
 };
 
 }

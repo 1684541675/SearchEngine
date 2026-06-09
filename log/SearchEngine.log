@@ -114,3 +114,21 @@
 	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:36342 disconnected
 2026-06-09 18:31:12,676 SearchEngine [INFO] [EchoServer.cc:onClose.80]
 	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:49214 disconnected
+2026-06-09 18:57:14,240 SearchEngine [INFO] [EchoServer.cc:onConnection.62]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:43324 connected
+2026-06-09 18:57:19,631 SearchEngine [INFO] [MyTask.cc:process.72]
+	LRU miss: 中国
+2026-06-09 18:57:34,932 SearchEngine [INFO] [EchoServer.cc:onConnection.62]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:33528 connected
+2026-06-09 18:58:06,718 SearchEngine [INFO] [EchoServer.cc:onConnection.62]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:40182 connected
+2026-06-09 18:58:43,384 SearchEngine [INFO] [EchoServer.cc:onConnection.62]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:49372 connected
+2026-06-09 18:59:03,163 SearchEngine [INFO] [EchoServer.cc:onClose.80]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:49372 disconnected
+2026-06-09 18:59:07,056 SearchEngine [INFO] [EchoServer.cc:onClose.80]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:40182 disconnected
+2026-06-09 18:59:11,922 SearchEngine [INFO] [EchoServer.cc:onClose.80]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:33528 disconnected
+2026-06-09 18:59:17,758 SearchEngine [INFO] [EchoServer.cc:onClose.80]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:43324 disconnected

@@ -132,3 +132,21 @@
 	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:33528 disconnected
 2026-06-09 18:59:17,758 SearchEngine [INFO] [EchoServer.cc:onClose.80]
 	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:43324 disconnected
+2026-07-03 19:21:37,994 SearchEngine [INFO] [EchoServer.cc:onConnection.62]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:58008 connected
+2026-07-03 19:21:59,841 SearchEngine [INFO] [MyTask.cc:process.72]
+	LRU miss: 中国人
+2026-07-03 19:22:54,375 SearchEngine [INFO] [EchoServer.cc:onClose.80]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:58008 disconnected
+2026-07-03 19:25:27,715 SearchEngine [INFO] [EchoServer.cc:onConnection.62]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:40968 connected
+2026-07-03 19:25:41,933 SearchEngine [INFO] [MyTask.cc:process.56]
+	redis miss: 中国
+2026-07-03 19:25:59,031 SearchEngine [INFO] [EchoServer.cc:onClose.80]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:40968 disconnected
+2026-07-03 19:36:47,345 SearchEngine [INFO] [EchoServer.cc:onConnection.62]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:47130 connected
+2026-07-03 19:37:11,763 SearchEngine [INFO] [MyTask.cc:process.72]
+	LRU miss: 中国人很厉害
+2026-07-03 19:37:54,211 SearchEngine [INFO] [EchoServer.cc:onClose.80]
+	[tcp] (local)127.0.0.1:1234 --> (peer)127.0.0.1:47130 disconnected

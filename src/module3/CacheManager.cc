@@ -54,9 +54,9 @@ void CacheManager::sync()
 #ifdef __DEBUG__
         cout << "group._pengdingCache.size() = " << pendingCache.size() << endl;
 #endif
-        for (auto &record : pendingCache._resultList)
+        for (auto it = pendingCache._resultList.rbegin(); it != pendingCache._resultList.rend(); ++it)
         {
-            first_group._mainCache.insertRecord(record.first, record.second);
+            first_group._mainCache.insertRecord(it->first, it->second);
 #ifdef __DEBUG__
             cout << "first_group._mainCache.size() = " << first_group._mainCache.size() << endl;
 #endif

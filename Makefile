@@ -36,7 +36,13 @@ server:
 	cd src/module3 && $(CXX) *.cc -o server $(INCLUDE) $(CXXFLAGS) $(SERVER_LDFLAGS) $(SERVER_LIBS)
 
 run-server: server
-	cd src/module3 && LD_LIBRARY_PATH=$(SERVER_LIB_DIR):$$LD_LIBRARY_PATH ./server
+	cd src/module3 && LD_LIBRARY_PATH=$(SERVER_LIB_DIR):$$LD_LIBRARY_PATH ./server; \
+	status=$$?; \
+	if [ $$status -eq 130 ]; then \
+		echo "[Server] stopped by user"; \
+		exit 0; \
+	fi; \
+	exit $$status
 
 client:
 	cd src/module4 && $(CXX) *.cc $(INCLUDE) $(CXXFLAGS) -o a.out

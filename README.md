@@ -282,6 +282,13 @@ export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 make run-server
 ```
 
+如果需要截取服务端运行截图，建议先执行 `make server`，再进入 `src/module3` 直接启动服务端。这样用 `Ctrl+C` 停止服务时不会出现 Make 的中断提示：
+
+```bash
+cd src/module3
+LD_LIBRARY_PATH=/usr/local/lib ./server
+```
+
 ### 5. 启动客户端
 
 ```bash

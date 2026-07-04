@@ -1,11 +1,10 @@
 #include "Dictionary.h"
 #include "Configuration.h"
 
-#include <iostream>
 #include <fstream>
 #include <sstream>
 
-using std::cout;
+using std::cerr;
 using std::endl;
 using std::ifstream;
 using std::istringstream;
@@ -32,12 +31,10 @@ Dictionary &Dictionary::getInstance()
 
 void Dictionary::initDict(const string &dictPath, vector<pair<string, int>> &dict)
 {
-    cout << "initialize dictionary: " << dictPath << endl;
-
     ifstream ifs(dictPath);
     if (!ifs)
     {
-        cout << "ifstream open file " << dictPath << " error!" << endl;
+        cerr << "ifstream open file " << dictPath << " error!" << endl;
         return;
     }
 
@@ -57,12 +54,10 @@ void Dictionary::initDict(const string &dictPath, vector<pair<string, int>> &dic
 
 void Dictionary::initIndex(const string &indexPath, unordered_map<string, unordered_set<int>> &index)
 {
-    cout << "initialize index: " << indexPath << endl;
-
     ifstream ifs(indexPath);
     if (!ifs)
     {
-        cout << "ifstream open file " << indexPath << " error!" << endl;
+        cerr << "ifstream open file " << indexPath << " error!" << endl;
         return;
     }
 

@@ -45,17 +45,14 @@ void Configuration::loadConf()
 
     while(getline(ifs, line)) {
         stringstream ss(line);
-        ss >> key >> value;
+        if (!(ss >> key >> value) || key[0] == '#') {
+            continue;
+        }
         _configMap[key] = value;
     }
 
-    cout << "[ Configuration loading... ]" << endl;
-
-    for(const auto &item : _configMap) {
-        cout << item.first << " " << item.second << endl;
-    }
-
-    cout << "[ Configuration load finished ]" << endl;
+    cout << "[Config] loaded " << _configMap.size()
+         << " entries from " << _filepath << endl;
 }
 
 } // namespace searchengine

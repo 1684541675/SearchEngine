@@ -29,6 +29,11 @@ EchoServer::EchoServer(const string &ip, unsigned short port)
 
 void EchoServer::start()
 {
+    auto &config = Configuration::getInstance().getConfigMap();
+    cout << "[Server] starting on " << config["ip"] << ":" << config["port"] << endl;
+    cout << "[Server] worker threads: " << INIT_WORKER_NUM
+         << ", cache records per worker: " << config["recordnum"] << endl;
+
     _pool.start();
 
     _timerThread.start();

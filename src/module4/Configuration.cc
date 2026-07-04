@@ -10,7 +10,6 @@ namespace searchengine {
 using std::ifstream;
 using std::stringstream;
 using std::getline;
-using std::cout;
 using std::cerr;
 using std::endl;
 
@@ -45,17 +44,12 @@ void Configuration::loadConf()
 
     while(getline(ifs, line)) {
         stringstream ss(line);
-        ss >> key >> value;
+        if (!(ss >> key >> value) || key[0] == '#') {
+            continue;
+        }
         _configMap[key] = value;
     }
 
-    cout << "[ Configuration loading... ]" << endl;
-
-    for(const auto &item : _configMap) {
-        cout << item.first << " " << item.second << endl;
-    }
-
-    cout << "[ Configuration load finished ]" << endl;
 }
 
 } // namespace searchengine

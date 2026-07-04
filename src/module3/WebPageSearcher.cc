@@ -11,15 +11,12 @@ using my_workaround_fifo_map = fifo_map<K, V, fifo_map_compare<K>, A>;
 using my_json = basic_json<my_workaround_fifo_map>;
 using Json = my_json;
 
-#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <utility>
 
 using std::ifstream;
 using std::stringstream;
-using std::cout;
-using std::endl;
 using std::move;
 using std::pair;
 
@@ -113,8 +110,6 @@ void WebPageSearcher::loadFromFile()
  */
 string WebPageSearcher::doQuery(string msg)
 {
-    cout << "doQuery: " << msg << endl;
-
     WebPage pageX;
     pageX.setPageContent(msg);               // 将 msg 作为 content 创建网页 pageX
     pageX.splitWord(_splitTool, _stopWords); // 对 pageX 分词并统计词频

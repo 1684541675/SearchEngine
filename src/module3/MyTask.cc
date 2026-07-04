@@ -49,14 +49,14 @@ void MyTask::process() // 由子线程（TheadPool）调用！！！
         if (result)
         {
             response = result.value();
-            cout << "key hit redis: <" << word << ", ...>" << endl;
+            cout << "[Redis] hit keyword: " << word << endl;
         }
         else
         {
             LogInfo("\n\tredis miss: %s", word.c_str());
             response = _recommender.doQuery(word); // 查询词典（在 doQuery 中序列化）
             _redis.setex(key, 60, response);
-            cout << "key insert redis: <" << word << ", ...>" << endl;
+            cout << "[Redis] store keyword: " << word << endl;
         }
     }
     else if (2 == msgID)
@@ -72,11 +72,11 @@ void MyTask::process() // 由子线程（TheadPool）调用！！！
             LogInfo("\n\tLRU miss: %s", query.c_str());
             response = _webPageSearcher.doQuery(query);
             pManager.getCacheGroup(__thread_id).insertRecord(query, response);
-            cout << "query insert LRU: <" << query << ", ...>" << endl;
+            cout << "[LRU] store query: " << query << endl;
         }
         else
         {
-            cout << "query hit LRU: <" << query << ", ...>" << endl;
+            cout << "[LRU] hit query: " << query << endl;
         }
     }
     else

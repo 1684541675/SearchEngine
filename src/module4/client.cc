@@ -29,11 +29,11 @@ int netFd; // 全局网络套接字
 
 void showMenu()
 {
-    printf("******* My tiny search engine *******\n");
+    printf("******** SearchEngine Client ********\n");
     printf("*                                   *\n");
-    printf("*     1: Keyword recommendation     *\n");
-    printf("*     2: Web page search            *\n");
-    printf("*     3: Quit                       *\n");
+    printf("*     1. Keyword recommendation     *\n");
+    printf("*     2. Web page search            *\n");
+    printf("*     3. Quit                       *\n");
     printf("*                                   *\n");
     printf("*************************************\n");
     printf("\n");
@@ -47,7 +47,7 @@ void showWithPaging(Json &root)
     size_t pageNum = root["msg"].size();
     if (pageNum <= 1)
     {
-        cout << "[ " << pageNum << " page were found ]" << endl;
+        cout << "[ " << pageNum << " page was found ]" << endl;
     }
     else
     {
@@ -70,11 +70,11 @@ void showWithPaging(Json &root)
         // 提示还剩 5 篇
         if (restNum <= 1)
         {
-            cout << "[ " << restNum << " page behind, please input 'n' to show the rest, or 'c' to continue ]" << endl;
+            cout << "[ " << restNum << " page left, please input 'n' to show the rest, or 'c' to continue ]" << endl;
         }
         else
         {
-            cout << "[ " << restNum << " pages behind, please input 'n' to show the rest, or 'c' to continue ]" << endl;
+            cout << "[ " << restNum << " pages left, please input 'n' to show the rest, or 'c' to continue ]" << endl;
         }
 
         char opt;
@@ -320,7 +320,7 @@ int main()
         switch (opt)
         {
         case 1:
-            cout << "Please input a key: " << endl;
+            cout << "Please input a keyword: " << endl;
             cin >> msg;
             sendKey(msg);
             recvKeys();

@@ -32,13 +32,12 @@ CacheManager::CacheManager()
 
 void CacheManager::sync()
 {
-    cout << "timer thread: start sync" << endl;
-
     if (_caches.empty())
     {
         return;
     }
 
+    size_t pendingRecordCount = 0;
     auto &first_group = _caches[0];
     MutexLockGuard firstGuard(first_group._mutex);
 
@@ -51,6 +50,7 @@ void CacheManager::sync()
         }
 
         auto &pendingCache = group._pendingUpdateCache;
+        pendingRecordCount += pendingCache.size();
 #ifdef __DEBUG__
         cout << "group._pengdingCache.size() = " << pendingCache.size() << endl;
 #endif
@@ -75,6 +75,12 @@ void CacheManager::sync()
         auto &group = _caches[idx];
         MutexLockGuard groupGuard(group._mutex);
         group._mainCache.update(first_group._mainCache);
+    }
+
+    if (pendingRecordCount > 0)
+    {
+        cout << "[Cache] synchronized " << pendingRecordCount
+             << " updated record(s)" << endl;
     }
 
 #ifdef __DEBUG__

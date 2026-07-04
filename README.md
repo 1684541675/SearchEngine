@@ -218,7 +218,6 @@ JSON body
 ```bash
 make module1   # 构建中英文词典生成程序
 make module2   # 构建网页库和倒排索引生成程序
-make server    # 构建在线搜索服务端
 make run-server # 构建并启动服务端，自动设置 LD_LIBRARY_PATH
 make client    # 构建命令行客户端
 ```
@@ -282,12 +281,6 @@ export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 make run-server
 ```
 
-如果需要截取服务端运行截图，建议先执行 `make server`，再进入 `src/module3` 直接启动服务端。这样用 `Ctrl+C` 停止服务时不会出现 Make 的中断提示：
-
-```bash
-cd src/module3
-LD_LIBRARY_PATH=/usr/local/lib ./server
-```
 
 ### 5. 启动客户端
 

@@ -15,7 +15,6 @@ help:
 	@echo "SearchEngine build targets:"
 	@echo "  make module1  - build offline dictionary generator"
 	@echo "  make module2  - build offline page/index generator"
-	@echo "  make server   - build online search server"
 	@echo "  make run-server - build and run server with LD_LIBRARY_PATH"
 	@echo "  make client   - build command line client"
 	@echo "  make offline  - build module1 and module2"
@@ -33,10 +32,10 @@ module2:
 	cd src/module2 && $(CXX) *.cc $(INCLUDE) $(CXXFLAGS) -o a.out
 
 server:
-	cd src/module3 && $(CXX) *.cc -o server $(INCLUDE) $(CXXFLAGS) $(SERVER_LDFLAGS) $(SERVER_LIBS)
+	@cd src/module3 && $(CXX) *.cc -o server $(INCLUDE) $(CXXFLAGS) $(SERVER_LDFLAGS) $(SERVER_LIBS)
 
 run-server: server
-	cd src/module3 && LD_LIBRARY_PATH=$(SERVER_LIB_DIR):$$LD_LIBRARY_PATH ./server; \
+	@cd src/module3 && LD_LIBRARY_PATH=$(SERVER_LIB_DIR):$$LD_LIBRARY_PATH ./server; \
 	status=$$?; \
 	if [ $$status -eq 130 ]; then \
 		echo "[Server] stopped by user"; \
@@ -45,7 +44,7 @@ run-server: server
 	exit $$status
 
 client:
-	cd src/module4 && $(CXX) *.cc $(INCLUDE) $(CXXFLAGS) -o a.out
+	@cd src/module4 && $(CXX) *.cc $(INCLUDE) $(CXXFLAGS) -o a.out
 
 clean:
 	rm -f src/module1/a.out

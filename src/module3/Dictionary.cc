@@ -1,6 +1,7 @@
 #include "Dictionary.h"
 #include "Configuration.h"
 
+#include <iostream>
 #include <fstream>
 #include <sstream>
 

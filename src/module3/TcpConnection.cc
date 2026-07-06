@@ -137,7 +137,6 @@ vector<string> TcpConnection::recvMessages()
         }
         else if (ret == 0)
         {
-            fprintf(stderr, "recv: peerFd(%d) disconnected\n", _connSock.fd());
             markClosed();
             break;
         }

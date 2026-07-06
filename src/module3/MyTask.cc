@@ -10,7 +10,12 @@ using my_workaround_fifo_map = fifo_map<K, V, fifo_map_compare<K>, A>;
 using my_json = basic_json<my_workaround_fifo_map>;
 using Json = my_json;
 
+#include <chrono>
 #include <iostream>
+#include <sw/redis++/errors.h>
+using std::chrono::duration_cast;
+using std::chrono::microseconds;
+using std::chrono::steady_clock;
 using std::cout;
 using std::endl;
 
@@ -45,18 +50,68 @@ void MyTask::process() // 由子线程（TheadPool）调用！！！
     {
         string word = root["msg"];
         string key = word;
-        auto result = _redis.get(key); // 查询 redis
-        if (result)
+        bool redisAvailable = true;
+        auto cacheStart = steady_clock::now();
+
+        try
         {
-            response = result.value();
-            cout << "[Redis] hit keyword: " << word << endl;
+            auto result = _redis.get(key);
+            if (result)
+            {
+                response = result.value();
+                auto costUs = duration_cast<microseconds>(steady_clock::now() - cacheStart).count();
+                cout << "[Redis] hit keyword: " << word
+                     << ", cost: " << costUs << " us" << endl;
+            }
+            else
+            {
+                LogInfo("\n\tredis miss: %s", word.c_str());
+            }
         }
-        else
+        catch (const sw::redis::Error &)
         {
-            LogInfo("\n\tredis miss: %s", word.c_str());
-            response = _recommender.doQuery(word); // 查询词典（在 doQuery 中序列化）
-            _redis.setex(key, 60, response);
-            cout << "[Redis] store keyword: " << word << endl;
+            redisAvailable = false;
+            cout << "[Redis] unavailable, fallback to dictionary" << endl;
+        }
+
+        if (response.empty())
+        {
+            bool storedToRedis = false;
+            bool storeSkipped = false;
+            response = _recommender.doQuery(word);
+            if (redisAvailable)
+            {
+                try
+                {
+                    _redis.setex(key, 60, response);
+                    storedToRedis = true;
+                }
+                catch (const sw::redis::Error &)
+                {
+                    storeSkipped = true;
+                }
+            }
+
+            auto costUs = duration_cast<microseconds>(steady_clock::now() - cacheStart).count();
+            if (redisAvailable)
+            {
+                cout << "[Redis] miss keyword: " << word
+                     << ", cost: " << costUs << " us";
+                if (storedToRedis)
+                {
+                    cout << ", cached";
+                }
+                else if (storeSkipped)
+                {
+                    cout << ", store skipped";
+                }
+                cout << endl;
+            }
+            else
+            {
+                cout << "[Redis] fallback keyword: " << word
+                     << ", cost: " << costUs << " us" << endl;
+            }
         }
     }
     else if (2 == msgID)
@@ -64,19 +119,23 @@ void MyTask::process() // 由子线程（TheadPool）调用！！！
         string query = root["msg"];
 
         auto &pManager = CacheManager::getInstance();
-        // 查 LRU 缓存，若命中直接发送
-        if ((response = pManager.getCacheGroup(__thread_id).getRecord(query)) == "")
+        auto &cacheGroup = pManager.getCacheGroup(__thread_id);
+        auto cacheStart = steady_clock::now();
+
+        if ((response = cacheGroup.getRecord(query)) == "")
         {
-            // 若未命中
-            // 将 response 插入
             LogInfo("\n\tLRU miss: %s", query.c_str());
             response = _webPageSearcher.doQuery(query);
-            pManager.getCacheGroup(__thread_id).insertRecord(query, response);
-            cout << "[LRU] store query: " << query << endl;
+            cacheGroup.insertRecord(query, response);
+            auto costUs = duration_cast<microseconds>(steady_clock::now() - cacheStart).count();
+            cout << "[LRU] miss query: " << query
+                 << ", cost: " << costUs << " us, cached" << endl;
         }
         else
         {
-            cout << "[LRU] hit query: " << query << endl;
+            auto costUs = duration_cast<microseconds>(steady_clock::now() - cacheStart).count();
+            cout << "[LRU] hit query: " << query
+                 << ", cost: " << costUs << " us" << endl;
         }
     }
     else

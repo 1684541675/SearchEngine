@@ -35,12 +35,35 @@ server:
 	@cd src/module3 && $(CXX) *.cc -o server $(INCLUDE) $(CXXFLAGS) $(SERVER_LDFLAGS) $(SERVER_LIBS)
 
 run-server: server
-	@cd src/module3 && LD_LIBRARY_PATH=$(SERVER_LIB_DIR):$$LD_LIBRARY_PATH ./server; \
-	status=$$?; \
-	if [ $$status -eq 130 ]; then \
-		echo "[Server] stopped by user"; \
+	@cd src/module3 && \
+	stopped=0; \
+	stop_server() { \
+		trap '' INT TERM; \
+		if [ $$stopped -eq 0 ]; then \
+			stopped=1; \
+			echo "[Server] stopped by user"; \
+		fi; \
+		if [ -n "$$server_pid" ]; then \
+			kill -TERM $$server_pid 2>/dev/null; \
+			for _ in 1 2 3; do \
+				if ! kill -0 $$server_pid 2>/dev/null; then \
+					break; \
+				fi; \
+				sleep 1; \
+			done; \
+			if kill -0 $$server_pid 2>/dev/null; then \
+				kill -KILL $$server_pid 2>/dev/null; \
+			fi; \
+			wait $$server_pid 2>/dev/null; \
+		fi; \
 		exit 0; \
-	fi; \
+	}; \
+	trap stop_server INT TERM; \
+	LD_LIBRARY_PATH=$(SERVER_LIB_DIR):$$LD_LIBRARY_PATH ./server & \
+	server_pid=$$!; \
+	wait $$server_pid; \
+	status=$$?; \
+	if [ $$status -eq 130 ] || [ $$status -eq 143 ]; then stop_server; fi; \
 	exit $$status
 
 client:

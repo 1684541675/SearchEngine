@@ -9,7 +9,7 @@ SERVER_LIB_DIR := /usr/local/lib
 SERVER_LDFLAGS := -L$(SERVER_LIB_DIR)
 SERVER_LIBS := -lredis++ -lhiredis -llog4cpp -lpthread
 
-.PHONY: help all offline module1 module2 server run-server client clean
+.PHONY: help all offline module1 module2 server run-server client run-client clean
 
 help:
 	@echo "SearchEngine build targets:"
@@ -17,6 +17,7 @@ help:
 	@echo "  make module2  - build offline page/index generator"
 	@echo "  make run-server - build and run server with LD_LIBRARY_PATH"
 	@echo "  make client   - build command line client"
+	@echo "  make run-client - build and run command line client"
 	@echo "  make offline  - build module1 and module2"
 	@echo "  make all      - build all modules"
 	@echo "  make clean    - remove generated binaries"
@@ -68,6 +69,9 @@ run-server: server
 
 client:
 	@cd src/module4 && $(CXX) *.cc $(INCLUDE) $(CXXFLAGS) -o a.out
+
+run-client: client
+	@cd src/module4 && ./a.out
 
 clean:
 	rm -f src/module1/a.out

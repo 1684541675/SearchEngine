@@ -2,12 +2,19 @@
 # The real compilation still uses g++; this Makefile only records the
 # module-specific commands so they are easier to run and remember.
 
-CXX := g++
-CXXFLAGS := -std=c++17
+CXX ?= g++
+CXXFLAGS ?= -std=c++17
 INCLUDE := -I../../include
-SERVER_LIB_DIR := /usr/local/lib
-SERVER_LDFLAGS := -L$(SERVER_LIB_DIR)
-SERVER_LIBS := -lredis++ -lhiredis -llog4cpp -lpthread
+PKG_CONFIG ?= pkg-config
+REDISXX_PREFIX ?= $(HOME)/.local
+
+# redis-plus-plus is installed under a user-local prefix by default.  Export
+# the directory so every pkg-config invocation spawned by make can find it.
+PKG_CONFIG_PATH := $(REDISXX_PREFIX)/lib/pkgconfig$(if $(PKG_CONFIG_PATH),:$(PKG_CONFIG_PATH))
+export PKG_CONFIG_PATH
+
+SERVER_CXXFLAGS := $(shell PKG_CONFIG_PATH="$(PKG_CONFIG_PATH)" $(PKG_CONFIG) --cflags redis++ hiredis log4cpp)
+SERVER_LDLIBS := $(filter-out -lpthread,$(shell PKG_CONFIG_PATH="$(PKG_CONFIG_PATH)" $(PKG_CONFIG) --libs redis++ hiredis log4cpp)) -pthread
 
 .PHONY: help all offline module1 module2 server run-server client run-client clean
 
@@ -33,7 +40,7 @@ module2:
 	cd src/module2 && $(CXX) *.cc $(INCLUDE) $(CXXFLAGS) -o a.out
 
 server:
-	@cd src/module3 && $(CXX) *.cc -o server $(INCLUDE) $(CXXFLAGS) $(SERVER_LDFLAGS) $(SERVER_LIBS)
+	@cd src/module3 && $(CXX) *.cc -o server $(INCLUDE) $(CXXFLAGS) $(SERVER_CXXFLAGS) $(SERVER_LDLIBS)
 
 run-server: server
 	@cd src/module3 && \
@@ -60,7 +67,7 @@ run-server: server
 		exit 0; \
 	}; \
 	trap stop_server INT TERM; \
-	LD_LIBRARY_PATH=$(SERVER_LIB_DIR):$$LD_LIBRARY_PATH ./server & \
+	LD_LIBRARY_PATH=$(REDISXX_PREFIX)/lib ./server & \
 	server_pid=$$!; \
 	wait $$server_pid; \
 	status=$$?; \

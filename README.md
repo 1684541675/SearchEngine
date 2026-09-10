@@ -5,7 +5,7 @@
 - 离线阶段：解析 RSS/XML 网页数据，完成网页去重、中文分词、词典构建、网页库构建和倒排索引构建。
 - 在线阶段：基于 Socket、epoll 和 Reactor 模型实现 TCP 服务端，通过线程池处理客户端请求，并结合本地 LRUCache 与 Redis 缓存热点查询结果。
 
-> 说明：项目已在 Ubuntu 18.04 虚拟机环境完成编译与基础联调。外部复现需提前安装 Redis、redis-plus-plus、hiredis、log4cpp 等依赖；本文档记录的是可复现运行链路和基础验证结果，不包含高并发压测结论。
+> 说明：项目已在 Ubuntu 24.04 WSL2（GCC 13）环境完成编译与基础联调。hiredis 与 log4cpp 通过 apt 安装，redis-plus-plus 1.3.15 安装在 `$HOME/.local`，Redis 7.0 通过 Docker 运行。本文档记录的是可复现运行链路和基础验证结果，不包含高并发压测结论。
 
 ## 技术栈
 
@@ -205,7 +205,7 @@ JSON body
 
 ## 编译与运行
 
-以下命令基于个人 Linux 虚拟机环境，服务端依赖本机已安装的 Redis、redis-plus-plus、hiredis、log4cpp 等库。
+以下命令基于已验证的 Ubuntu 24.04 WSL2 环境：使用 GCC 13；hiredis 与 log4cpp 通过 apt 安装；redis-plus-plus 1.3.15 安装在 `$HOME/.local`；Redis 7.0 通过 Docker 运行。Makefile 会把 `$HOME/.local/lib/pkgconfig` 导出给 `pkg-config`，并由 `pkg-config` 获取 redis-plus-plus、hiredis 与 log4cpp 的编译和链接参数。
 
 推荐按下面链路复现：
 
@@ -220,33 +220,26 @@ JSON body
 ```bash
 make module1   # 构建中英文词典生成程序
 make module2   # 构建网页库和倒排索引生成程序
-make run-server # 构建并启动服务端，自动设置 LD_LIBRARY_PATH
+make run-server # 构建并启动服务端，仅为该进程设置 LD_LIBRARY_PATH
 make client    # 构建命令行客户端
 make run-client # 构建并启动命令行客户端
 ```
 
-也可以按下面步骤进入各模块目录手动编译和运行。
+也可以按下面步骤进入各模块目录运行；建议使用根目录 Makefile 构建服务端，以复用 `pkg-config` 提供的依赖参数。
 
 ### 1. 启动 Redis
 
 ```bash
-cd redis
-sudo redis-server redis.conf
-```
-
-重新打开一个终端验证：
-
-```bash
-cd redis
+docker start <redis-container>
 redis-cli ping
 ```
 
 若返回 `PONG`，说明 Redis 已启动。
 
-如需关闭 Redis：
+如需停止 Redis 容器：
 
 ```bash
-redis-cli shutdown
+docker stop <redis-container>
 ```
 
 ### 2. 构建中英文词典
@@ -272,18 +265,9 @@ g++ *.cc -I../../include
 ### 4. 启动服务端
 
 ```bash
-cd src/module3
-g++ *.cc -o server -I../../include -std=c++17 -L/usr/local/lib -lredis++ -lhiredis -llog4cpp -lpthread
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-./server
-```
-
-如果使用根目录的 `Makefile`，可以直接执行：
-
-```bash
+# Run from the project root so Makefile supplies dependency flags.
 make run-server
 ```
-
 
 ### 5. 启动客户端
 

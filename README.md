@@ -293,6 +293,27 @@ g++ *.cc -I../../include -std=c++17
 ./a.out
 ```
 
+## Benchmark
+
+`tools/benchmark.py` 是独立的本机 asyncio 压测客户端，不修改服务端、线程池、缓存或 TCP 协议。它严格复用当前协议：本机 `size_t` 长度头，后接 UTF-8 JSON body；因此应在与服务端兼容的 Ubuntu WSL2 环境中运行。
+
+先在一个终端启动服务端：
+
+```bash
+cd ~/searchengine
+make run-server
+```
+
+再在另一终端执行关键词推荐或网页检索压测：
+
+```bash
+cd ~/searchengine
+python3 tools/benchmark.py --concurrency 5 --requests-per-connection 20 --msg-id 1 --query linux --warmup 2
+python3 tools/benchmark.py --concurrency 5 --requests-per-connection 20 --msg-id 2 --query 搜索 --warmup 2
+```
+
+可通过 `--host`、`--port`、`--timeout` 和 `--max-response-bytes` 调整连接目标与保护阈值。输出字段包括总请求数、成功数、错误率、耗时、成功 QPS、平均延迟及 P50/P95/P99 延迟；warmup 请求不计入统计结果。
+
 ## 配置文件
 
 主要配置位于 `conf/myconf.conf`，包括：

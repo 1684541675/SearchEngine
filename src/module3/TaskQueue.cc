@@ -36,7 +36,7 @@ void TaskQueue::push(Task &&task)
 
     _queue.push(move(task)); // 任务入队
 
-    _empty.notifyAll();
+    _empty.notify();
     
 }
 
@@ -56,7 +56,7 @@ TaskQueue::Task TaskQueue::pop()
     Task tmp = move(_queue.front());
     _queue.pop(); // 任务出队
 
-   _full.notifyAll();
+   _full.notify();
     
     return tmp;
 }

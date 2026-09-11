@@ -172,18 +172,38 @@ python3 tools/benchmark.py --concurrency 5 --requests-per-connection 20 --msg-id
 
 ## 性能优化
 
-第一阶段 benchmark 定位并修复了服务端响应链路中的固定等待：仅对服务端 accept 后的连接设置 `TCP_NODELAY`，未合并 header/body，也未改动线程池、缓存、eventfd/epoll 或协议。
+### 优化 1：启用 TCP_NODELAY
 
-代表性 V1/V2 对照：
+针对小请求场景中 TCP 延迟较高的问题，启用 `TCP_NODELAY`，减少 Nagle 算法带来的小包等待。
 
-| 场景 | V1 | V2 |
-| --- | ---: | ---: |
-| Keyword recommendation，concurrency=1，P50 | 47.718 ms | 0.575 ms |
-| Web search，concurrency=1，P50 | 44.082 ms | 0.457 ms |
-| Keyword recommendation，concurrency=100，QPS | 2071.10 | 3814.66 |
-| Web search，concurrency=100，QPS | 1932.55 | 2722.70 |
+在 `concurrency=100`、`query=linux` 的测试条件下：
 
-数据来自 Ubuntu 24.04 WSL2 的 localhost、warm-cache、固定 query 场景；V1/V2 每个并发档仅测试一次，不代表远程网络或生产环境容量。完整定位过程、tcpdump 证据、全部数据和限制见 [TCP_NODELAY 性能记录](docs/performance/01_tcp_nodelay.md)。
+- QPS：2071.10 → 3814.66，提升约 84.2%
+- Avg latency：47.146 ms → 26.093 ms，下降约 44.7%
+- P95：52.219 ms → 31.987 ms
+- P99：59.441 ms → 33.302 ms
+- Error rate：0%
+
+详细过程见：[01_tcp_nodelay.md](docs/performance/01_tcp_nodelay.md)
+
+### 优化 2：减少 TaskQueue 条件变量广播唤醒
+
+使用 `perf` 定位到线程池正常请求路径中存在较明显的条件变量广播唤醒与线程调度开销。
+
+将 `TaskQueue` 正常生产/消费路径中的：
+
+- `notifyAll()` 改为 `notify()`
+- 退出路径仍保留 `notifyAll()`
+
+5 轮 A/B 测试结果：
+
+- QPS：3318.15 → 3430.38，提升约 3.38%
+- Avg latency：29.995 ms → 29.006 ms，下降约 3.30%
+- P95：39.673 ms → 37.590 ms，下降约 5.25%
+- P99：46.664 ms → 43.366 ms，下降约 7.07%
+- Error rate：0%
+
+详细过程见：[02_condition_signal.md](docs/performance/02_condition_signal.md)
 
 ## 配置文件
 

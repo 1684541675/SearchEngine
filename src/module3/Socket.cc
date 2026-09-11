@@ -1,5 +1,7 @@
 #include "Socket.h"
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <cstdio>
@@ -58,6 +60,16 @@ void Socket::setNonBlock()
     if (fcntl(_fd, F_SETFL, flags) == -1) 
     {
         perror("fcntl F_SETFL");
+    }
+}
+
+void Socket::setNoDelay()
+{
+    int on = 1;
+    int ret = setsockopt(_fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
+    if (ret < 0)
+    {
+        perror("setsockopt(TCP_NODELAY)");
     }
 }
 

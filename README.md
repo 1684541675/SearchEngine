@@ -314,6 +314,8 @@ python3 tools/benchmark.py --concurrency 5 --requests-per-connection 20 --msg-id
 
 可通过 `--host`、`--port`、`--timeout`、`--max-response-bytes` 和 `--show-sample` 调整连接目标、保护阈值及是否打印第一条完整业务响应。输出保留总请求数、成功数、错误率、耗时、成功 QPS、平均延迟及 P50/P95/P99 延迟，并新增 protocol success、business success、business miss / 404、异常响应数和各响应 msgID 计数；warmup 请求不计入统计结果。
 
+性能定位与第一阶段 TCP_NODELAY 对照实验记录见 [docs/performance/01_tcp_nodelay.md](docs/performance/01_tcp_nodelay.md)。
+
 ## 配置文件
 
 主要配置位于 `conf/myconf.conf`，包括：

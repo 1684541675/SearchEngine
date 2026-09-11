@@ -27,7 +27,7 @@ TcpConnection::TcpConnection(int fd, EventLoop *loopPtr)
 ,_isAlive(true)
 ,_loopPtr(loopPtr)
 {
-
+    _connSock.setNoDelay();
 }
 
 /**

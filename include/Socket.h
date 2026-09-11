@@ -25,6 +25,7 @@ public:
     int fd() const;
     void shutDownWrite();
     void setNonBlock();
+    void setNoDelay();
 
 private:
     int _fd;

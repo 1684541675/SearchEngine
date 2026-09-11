@@ -1,366 +1,208 @@
 # SearchEngine
 
-基于 Linux C++ 实现的小型搜索引擎服务端系统，支持关键词推荐与网页检索。项目分为离线构建和在线服务两部分：
+基于 Linux C++ 实现的教学/学习型小型搜索引擎，支持关键词推荐与网页检索。项目包含离线数据构建与在线查询服务两部分：
 
-- 离线阶段：解析 RSS/XML 网页数据，完成网页去重、中文分词、词典构建、网页库构建和倒排索引构建。
-- 在线阶段：基于 Socket、epoll 和 Reactor 模型实现 TCP 服务端，通过线程池处理客户端请求，并结合本地 LRUCache 与 Redis 缓存热点查询结果。
+- 离线阶段：解析 RSS/XML 网页数据，完成 Simhash 去重、中文分词、词典构建、网页库构建和倒排索引构建。
+- 在线阶段：使用 Socket 与基于 epoll 的 Reactor 风格事件循环提供 TCP 服务；线程池处理业务任务，Redis 与本地 LRUCache 缓存热点查询结果。
 
-> 说明：项目已在 Ubuntu 24.04 WSL2（GCC 13）环境完成编译与基础联调。hiredis 与 log4cpp 通过 apt 安装，redis-plus-plus 1.3.15 安装在 `$HOME/.local`，Redis 7.0 通过 Docker 运行。本文档记录的是可复现运行链路和基础验证结果，不包含高并发压测结论。
+> 已在 Ubuntu 24.04 WSL2（GCC 13）完成编译、基础联调及 localhost 热缓存 benchmark。hiredis、log4cpp 通过 apt 安装；redis-plus-plus 1.3.15 安装在 `$HOME/.local`；Redis 7.0 通过 Docker 运行。
 
 ## 技术栈
 
 - 语言与平台：C++、Linux
-- 网络编程：Socket、TCP、epoll、Reactor、eventfd
+- 网络编程：Socket、TCP、epoll、基于 epoll 的 Reactor 风格事件循环、eventfd
 - 并发编程：pthread、线程池、任务队列、互斥锁、条件变量
 - 搜索相关：CppJieba、Simhash、TF-IDF、倒排索引、编辑距离
 - 数据与缓存：Redis、LRUCache
 - 序列化与解析：nlohmann/json、tinyxml2
-- 工具：GCC/G++、Makefile 思路、Git
-
-## 运行效果
-
-### 服务启动与依赖验证
-
-Redis 启动与 `PONG` 验证：
-
-![Redis 启动与 PONG 验证截图](<picture/Redis 启动与 PONG 验证截图.png>)
-
-服务端启动并加载配置：
-
-![服务端启动](<picture/服务端启动.png>)
-
-### 客户端查询效果
-
-关键词推荐：
-
-![客户端关键词推荐命中](<picture/客户端关键词推荐命中.png>)
-
-网页检索：
-
-![客户端网页检索命中](<picture/客户端网页检索命中.png>)
-
-### 缓存效果观察
-
-以下截图用于观察重复查询时缓存命中与未命中的耗时差异，不作为系统化压测或高并发能力结论。
-
-Redis 缓存关键词推荐结果：第一次查询未命中后写入缓存，重复查询命中 Redis，耗时明显降低。
-
-![缓存效果观察 Redis 关键词推荐](<picture/缓存效果观察_Redis关键词推荐.png>)
-
-本地 LRUCache 缓存网页检索结果：第一次网页检索未命中后写入本地缓存，重复查询命中 LRUCache。
-
-![缓存效果观察 LRU 网页检索](<picture/缓存效果观察_LRU网页检索.png>)
+- 构建与工具：GCC/G++、Makefile、Git、Docker
 
 ## 目录结构
 
 ```text
 .
-├── 3rdparty/                 # 第三方库：simhash-cppjieba、nlohmann/json
-├── conf/                     # 配置文件
+├── 3rdparty/                 # simhash-cppjieba、nlohmann/json
+├── conf/
 │   └── myconf.conf
-├── data/                     # 离线构建生成的数据文件
-│   ├── dict.dat              # 中文词典
-│   ├── dictIndex.dat         # 中文词典索引
-│   ├── enDict.dat            # 英文词典
-│   ├── enDictIndex.dat       # 英文词典索引
-│   ├── ripepage.dat          # 网页库
-│   ├── offset.dat            # 网页偏移库
-│   └── invertIndex.dat       # 倒排索引库
+├── data/                     # 离线构建产物
+├── docs/
+│   └── performance/          # 性能定位与实验记录
 ├── include/                  # 项目头文件
 ├── log/                      # 日志文件
-├── picture/                  # README 运行截图
 ├── src/
-│   ├── module1/              # 离线词典构建模块
-│   ├── module2/              # 离线网页库和倒排索引构建模块
+│   ├── module1/              # 离线词典构建
+│   ├── module2/              # 网页库与倒排索引构建
 │   ├── module3/              # 在线搜索服务端
 │   └── module4/              # 命令行客户端
+├── tools/
+│   └── benchmark.py          # 本机 asyncio benchmark
 ├── yuliao/                   # 原始语料和停用词
-├── Makefile                  # 分模块编译辅助脚本
-└── README.md                 # 项目说明文档
+├── Makefile
+└── README.md
 ```
 
 ## 核心模块
 
-### 1. 离线词典构建
+### 离线词典构建
 
-对应目录：`src/module1`
+`src/module1`：`DictProducer` 读取中英文语料并生成词典及词典索引；`SplitTool` 封装中文分词。产物包括 `dict.dat`、`dictIndex.dat`、`enDict.dat`、`enDictIndex.dat`。
 
-主要类：
+### 网页库与倒排索引构建
 
-- `DictProducer`：读取中英文语料，统计词频，生成词典和词典索引。
-- `SplitTool`：封装中文分词能力。
-- `Configuration`：读取配置文件路径。
+`src/module2`：`DirScanner` 扫描 XML，`RssParser` 解析 RSS；`PageProcesser` 完成网页加载、Simhash 去重、分词和词频统计；`InvertIndexProcesser` 基于 TF-IDF 生成倒排索引，`OffsetProcesser` 生成按 docid 读取网页的偏移信息。
 
-产物：
+### 在线服务端
 
-- `data/dict.dat`
-- `data/dictIndex.dat`
-- `data/enDict.dat`
-- `data/enDictIndex.dat`
+`src/module3`：`Acceptor` 监听并接入连接；`EventLoop` 使用 epoll 分发连接、可读和 eventfd 唤醒事件；`TcpConnection` 维护单连接状态与协议收发；`ThreadPool` / `TaskQueue` 执行业务任务。工作线程完成查询后，通过 pending callback + eventfd 唤醒 I/O 线程，由 I/O 线程回写响应。
 
-### 2. 离线网页库与倒排索引构建
+- `KeyRecommender`：按编辑距离、词频和字典序返回候选词。
+- `WebPageSearcher`：加载网页库与倒排索引，以向量相似度完成相关度排序。
+- `CacheManager` / `CacheGroup` / `LRUCache`：管理网页检索本地缓存；`TimerThread` 周期同步各工作线程的本地缓存。
 
-对应目录：`src/module2`
+### 命令行客户端
 
-主要类：
-
-- `DirScanner`：扫描网页 XML 文件目录。
-- `RssParser`：解析 RSS/XML 数据。
-- `PageProcesser`：完成网页加载、Simhash 去重、分词和词频统计。
-- `PageLib`：组织网页库、偏移库和倒排索引库的构建流程。
-- `InvertIndexProcesser`：基于 TF-IDF 生成倒排索引。
-- `OffsetProcesser`：生成网页偏移信息，便于按 docid 读取网页内容。
-
-产物：
-
-- `data/ripepage.dat`
-- `data/offset.dat`
-- `data/invertIndex.dat`
-
-### 3. 在线服务端
-
-对应目录：`src/module3`
-
-主要类：
-
-- `Acceptor`：负责监听 socket 的创建、地址复用、绑定、监听和 accept。
-- `TcpServer`：组合 `Acceptor` 和 `EventLoop`，对外提供服务启动接口。
-- `EventLoop`：基于 epoll 监听连接事件、消息事件和 eventfd 唤醒事件。
-- `TcpConnection`：封装单条 TCP 连接，负责收发数据和连接状态判断。
-- `ThreadPool` / `TaskQueue`：使用生产者-消费者模型处理业务任务。
-- `MyTask`：根据请求类型调用关键词推荐或网页检索逻辑。
-- `KeyRecommender`：基于词典索引、编辑距离、词频和字典序返回推荐词。
-- `WebPageSearcher`：加载网页库和倒排索引，完成网页检索和排序。
-- `CacheManager` / `CacheGroup` / `LRUCache`：管理本地缓存。
-- `TimerThread` / `Timer` / `TimerTask`：定时同步各工作线程的本地缓存。
-
-### 4. 客户端
-
-对应目录：`src/module4`
-
-命令行客户端通过 TCP 连接服务端，支持：
-
-- `1`：关键词推荐
-- `2`：网页检索
-- `3`：退出
+`src/module4` 通过 TCP 连接服务端，支持 `1` 关键词推荐、`2` 网页检索和 `3` 退出。
 
 ## 请求处理流程
 
 ```text
 Client
-  |
-  |  length + JSON body
+  |  native size_t length header + JSON body
   v
-TcpServer / EventLoop
-  |
-  |  epoll 监听到可读事件
+EventLoop (epoll readable event)
   v
-TcpConnection::recv()
-  |
-  |  EchoServer::onMessage()
+TcpConnection::recvMessages()
   v
-ThreadPool
-  |
-  |  MyTask::process()
-  |    ├── msgID = 1：KeyRecommender
-  |    └── msgID = 2：WebPageSearcher
+EchoServer::onMessage() -> ThreadPool -> MyTask::process()
+  |                              | msgID=1: KeyRecommender
+  |                              | msgID=2: WebPageSearcher
   v
 TcpConnection::notifyLoop()
-  |
-  |  pending callback + eventfd 唤醒 IO 线程
   v
-EventLoop::handlePendingCbs()
-  |
-  |  TcpConnection::send()
+pending callback + eventfd wakeup
   v
-Client
+EventLoop::handlePendingCbs() -> TcpConnection::send() -> Client
 ```
 
 ## 通信协议
 
-客户端和服务端采用简单的“长度头 + JSON 正文”格式：
+请求和响应均采用“长度头 + JSON 正文”：
 
 ```text
-size_t length
-JSON body
+native size_t length
+UTF-8 JSON body
 ```
 
-请求类型：
+请求示例：
 
 ```json
 {
-    "msgID": 1,
-    "msg": "keyword"
+  "msgID": 1,
+  "msg": "keyword"
 }
 ```
 
-- `msgID = 1`：关键词推荐
-- `msgID = 2`：网页检索
+- `msgID = 1`：关键词推荐；成功响应为 `100`
+- `msgID = 2`：网页检索；成功响应为 `200`
+- `msgID = 404`：业务未命中
 
-响应类型：
+## 环境、构建与运行
 
-- `msgID = 100`：关键词推荐成功
-- `msgID = 200`：网页检索成功
-- `msgID = 404`：未查询到结果
-
-## 编译与运行
-
-以下命令基于已验证的 Ubuntu 24.04 WSL2 环境：使用 GCC 13；hiredis 与 log4cpp 通过 apt 安装；redis-plus-plus 1.3.15 安装在 `$HOME/.local`；Redis 7.0 通过 Docker 运行。Makefile 会把 `$HOME/.local/lib/pkgconfig` 导出给 `pkg-config`，并由 `pkg-config` 获取 redis-plus-plus、hiredis 与 log4cpp 的编译和链接参数。
-
-推荐按下面链路复现：
-
-1. 启动 Redis，并用 `redis-cli ping` 验证返回 `PONG`。
-2. 构建中英文词典，生成 `dict.dat`、`dictIndex.dat`、`enDict.dat` 和 `enDictIndex.dat`。
-3. 构建网页库、网页偏移库和倒排索引库。
-4. 启动在线搜索服务端。
-5. 启动命令行客户端，分别验证关键词推荐和网页检索。
-
-项目根目录提供了一个简单的 `Makefile`，用于保存各模块的 `g++` 编译命令：
-
-```bash
-make module1   # 构建中英文词典生成程序
-make module2   # 构建网页库和倒排索引生成程序
-make run-server # 构建并启动服务端，仅为该进程设置 LD_LIBRARY_PATH
-make client    # 构建命令行客户端
-make run-client # 构建并启动命令行客户端
-```
-
-也可以按下面步骤进入各模块目录运行；建议使用根目录 Makefile 构建服务端，以复用 `pkg-config` 提供的依赖参数。
+Makefile 将 `$HOME/.local/lib/pkgconfig` 导出给 `pkg-config`，并用其获取 redis-plus-plus、hiredis、log4cpp 的编译与链接参数。
 
 ### 1. 启动 Redis
 
 ```bash
-docker start <redis-container>
-redis-cli ping
+docker start searchengine-redis
+docker exec searchengine-redis redis-cli ping
 ```
 
-若返回 `PONG`，说明 Redis 已启动。
+预期输出：`PONG`。以上命令直接在容器内运行 `redis-cli`，不要求 WSL 主机额外安装该客户端。
 
-如需停止 Redis 容器：
+### 2. 构建离线数据
 
 ```bash
-docker stop <redis-container>
+cd ~/projects/searchengine
+make module1
+cd src/module1 && ./a.out
+
+cd ~/projects/searchengine
+make module2
+cd src/module2 && ./a.out
 ```
 
-### 2. 构建中英文词典
+### 3. 启动服务端
 
 ```bash
-cd src/module1
-g++ *.cc -I../../include
-./a.out
-```
-
-该步骤会生成或更新中英文词典及索引文件。
-
-### 3. 构建网页库和倒排索引
-
-```bash
-cd src/module2
-g++ *.cc -I../../include
-./a.out
-```
-
-该步骤会生成或更新网页库、网页偏移库和倒排索引库。
-
-### 4. 启动服务端
-
-```bash
-# Run from the project root so Makefile supplies dependency flags.
+cd ~/projects/searchengine
 make run-server
 ```
 
-### 5. 启动客户端
+### 4. 启动命令行客户端
 
-如果使用根目录的 `Makefile`，可以直接执行：
+另开终端：
 
 ```bash
+cd ~/projects/searchengine
 make run-client
 ```
 
-也可以只编译客户端后手动进入模块目录运行：
-
-```bash
-make client
-cd src/module4
-./a.out
-```
-
-或在客户端目录手动编译和运行：
-
-```bash
-cd src/module4
-g++ *.cc -I../../include -std=c++17
-./a.out
-```
+可分别验证关键词推荐、网页检索以及 Redis/LRUCache 重复查询命中行为。
 
 ## Benchmark
 
-`tools/benchmark.py` 是独立的本机 asyncio 压测客户端，不修改服务端、线程池、缓存或 TCP 协议。它严格复用当前协议：本机 `size_t` 长度头，后接 UTF-8 JSON body；因此应在与服务端兼容的 Ubuntu WSL2 环境中运行。
+`tools/benchmark.py` 是独立的 Python asyncio 本机压测客户端，严格复用当前 native `size_t` 长度头 + UTF-8 JSON body 协议，不修改服务端、线程池、缓存或协议实现。
 
-先在一个终端启动服务端：
+先启动服务端：
 
 ```bash
-cd ~/searchengine
+cd ~/projects/searchengine
 make run-server
 ```
 
-再在另一终端执行关键词推荐或网页检索压测：
+再在另一终端执行：
 
 ```bash
-cd ~/searchengine
+cd ~/projects/searchengine
 python3 tools/benchmark.py --concurrency 5 --requests-per-connection 20 --msg-id 1 --query linux --warmup 2 --show-sample
 python3 tools/benchmark.py --concurrency 5 --requests-per-connection 20 --msg-id 2 --query 搜索 --warmup 2 --show-sample
 ```
 
-可通过 `--host`、`--port`、`--timeout`、`--max-response-bytes` 和 `--show-sample` 调整连接目标、保护阈值及是否打印第一条完整业务响应。输出保留总请求数、成功数、错误率、耗时、成功 QPS、平均延迟及 P50/P95/P99 延迟，并新增 protocol success、business success、business miss / 404、异常响应数和各响应 msgID 计数；warmup 请求不计入统计结果。
+可通过 `--host`、`--port`、`--timeout`、`--max-response-bytes`、`--show-sample` 调整目标与保护阈值。输出包含 total requests、protocol success、business success、business miss / 404、响应 msgID 计数、错误样本、QPS、平均延迟和 P50/P95/P99；warmup 请求不计入统计。
 
-性能定位与第一阶段 TCP_NODELAY 对照实验记录见 [docs/performance/01_tcp_nodelay.md](docs/performance/01_tcp_nodelay.md)。
+## 性能优化
+
+第一阶段 benchmark 定位并修复了服务端响应链路中的固定等待：仅对服务端 accept 后的连接设置 `TCP_NODELAY`，未合并 header/body，也未改动线程池、缓存、eventfd/epoll 或协议。
+
+代表性 V1/V2 对照：
+
+| 场景 | V1 | V2 |
+| --- | ---: | ---: |
+| Keyword recommendation，concurrency=1，P50 | 47.718 ms | 0.575 ms |
+| Web search，concurrency=1，P50 | 44.082 ms | 0.457 ms |
+| Keyword recommendation，concurrency=100，QPS | 2071.10 | 3814.66 |
+| Web search，concurrency=100，QPS | 1932.55 | 2722.70 |
+
+数据来自 Ubuntu 24.04 WSL2 的 localhost、warm-cache、固定 query 场景；V1/V2 每个并发档仅测试一次，不代表远程网络或生产环境容量。完整定位过程、tcpdump 证据、全部数据和限制见 [TCP_NODELAY 性能记录](docs/performance/01_tcp_nodelay.md)。
 
 ## 配置文件
 
-主要配置位于 `conf/myconf.conf`，包括：
+主要配置位于 `conf/myconf.conf`，包括 CppJieba 词典、语料、停用词、离线产物、服务端 IP/端口、工作线程数、缓存容量、最大返回数量和缓存同步间隔。
 
-- CppJieba 词典路径
-- 中英文语料路径
-- 停用词路径
-- 离线构建产物路径
-- 服务端 IP 和端口
-- 工作线程数量
-- 缓存容量
-- 最大返回结果数量
-- 定时缓存同步间隔
-
-注意：当前配置文件中的路径以各模块运行目录为基准，例如从 `src/module3` 启动服务端时，默认配置路径为 `../../conf/myconf.conf`。
-
-当前配置中服务端默认监听 `127.0.0.1:1234`，工作线程数为 `5`，关键词推荐最大返回数量为 `10`，网页检索最大返回数量为 `30`，缓存同步的初始时间和周期分别为 `1` 秒和 `3` 秒。
-
-## 基础联调与验证记录
-
-当前已保留的基础联调材料包括：
-
-- Redis 启动后通过 `redis-cli ping` 返回 `PONG`。
-- 服务端完成启动并加载配置。
-- 客户端关键词推荐支持命中与未命中场景。
-- 客户端网页检索支持命中与未命中场景。
-- Redis 关键词推荐缓存可观察到未命中写入缓存、重复查询命中缓存的耗时差异。
-- 本地 LRUCache 网页检索缓存可观察到未命中写入缓存、重复查询命中缓存的耗时差异。
-
-上述缓存截图只用于基础联调和缓存效果观察。在没有系统化测试方案与真实测试数据前，不写 QPS、延迟或高并发压测结论。
+配置文件路径以各模块运行目录为基准；例如服务端从 `src/module3` 启动时使用 `../../conf/myconf.conf`。当前默认监听 `127.0.0.1:1234`，工作线程数为 `5`。
 
 ## 项目亮点
 
-- 基于 epoll 封装 Reactor 风格的 TCP 服务端。
-- 使用线程池和任务队列将网络 IO 与业务计算解耦。
-- 使用 pending callback + eventfd 机制，让工作线程完成业务后通知 IO 线程统一发送响应。
-- 离线阶段使用 Simhash 对网页内容去重。
-- 基于 TF-IDF 构建倒排索引，并通过向量相似度完成网页相关度排序。
-- 关键词推荐模块综合编辑距离、词频和字典序进行候选词排序。
-- 使用 Redis 缓存关键词推荐结果，使用本地 LRUCache 缓存网页检索结果，并在服务端日志中输出命中/未命中及耗时，便于观察重复查询的缓存效果。
+- 将网络 I/O 与业务计算分离：epoll 事件循环负责连接/读事件和回写调度，线程池执行搜索任务。
+- 使用 pending callback + eventfd 将工作线程结果安全交回 I/O 线程。
+- 离线阶段组合 Simhash、分词、TF-IDF 与倒排索引；在线阶段提供关键词推荐与网页相关度排序。
+- Redis 缓存关键词推荐结果，本地 LRUCache 缓存网页检索结果；本地缓存不是分布式缓存架构。
+- 通过 asyncio benchmark、代码路径检查和 tcpdump 定位 TCP 小包等待，并以单变量 `TCP_NODELAY` 实验完成验证。
 
 ## 当前限制
 
-- 项目主要用于学习 Linux C++ 后端开发流程，不是工业级搜索引擎系统。
-- 服务端依赖本地 Redis、redis-plus-plus、hiredis、log4cpp 环境，未提供一键安装脚本。
-- 当前未提供 CMake 工程化构建，仍以分模块 g++ 命令编译为主。
-- 暂未提供系统化压测数据，因此不对 QPS、延迟或高并发能力做夸大承诺。
-- 本地缓存和 Redis 的使用以项目演示和热点查询优化为主，不涉及分布式缓存架构。
+- 项目用于学习 Linux C++ 后端开发流程，是小型搜索引擎，不是工业级或生产级搜索系统。
+- 当前协议使用 native `size_t` 长度头，未处理跨架构、跨字节序兼容性。
+- 当前实现是基于 epoll 的 Reactor 风格事件循环，不是完整的全非阻塞 Reactor：连接写回尚未实现基于 `EPOLLOUT` 的输出缓冲与背压处理。
+- Redis 与本地 LRUCache 用于热点查询缓存，不构成分布式缓存架构。
+- benchmark 是本机 localhost 测试；后续性能比较应维持相同参数，并在多次运行后再报告稳定统计。
